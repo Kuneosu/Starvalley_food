@@ -34,8 +34,8 @@ fi
 
 echo "🍽️ 메뉴 처리 시작..." >> "$LOG_FILE"
 
-# 메뉴 처리 스크립트 실행
-node daily-menu-processor.js >> "$LOG_FILE" 2>&1
+# 완전 자동화 메뉴 처리 스크립트 실행
+node daily-menu-processor-automated.js >> "$LOG_FILE" 2>&1
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then

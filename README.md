@@ -1,16 +1,20 @@
 # Star Valley Food CLI 3.0
 
-Star Valley 구내식당 메뉴 조회 CLI 도구입니다. Claude Code 기반 로컬 실행 아키텍처로 전환하여 더욱 효율적이고 경제적인 솔루션을 제공합니다.
+[![npm version](https://badge.fury.io/js/starvalley-food.svg)](https://badge.fury.io/js/starvalley-food)
+[![npm downloads](https://img.shields.io/npm/dm/starvalley-food.svg)](https://www.npmjs.com/package/starvalley-food)
+
+Star Valley 구내식당 메뉴 조회 CLI 도구입니다. Claude CLI 기반 완전 자동화 아키텍처로 전환하여 더욱 효율적이고 경제적인 솔루션을 제공합니다.
 
 ## 🌟 주요 기능
 
-- **🤖 Claude Code 기반**: Claude의 우수한 이미지 분석 성능 활용
+- **🤖 Claude CLI 완전 자동화**: 이미지 다운로드부터 분석까지 완전 무인 실행
 - **📡 실시간 조회**: GitHub에서 실시간 메뉴 데이터 조회
 - **🔄 로컬 자동화**: Cron을 이용한 매일 오전 08:30 자동 실행
 - **📱 간편한 설치**: `npm install -g starvalley-food` 한 줄로 설치
 - **🚀 빠른 실행**: 캐시된 데이터로 1초 이내 조회
 - **🗓️ 날짜별 조회**: 과거 메뉴 데이터 조회 가능
 - **💰 비용 효율적**: OpenAI API 비용 없이 Claude Max 요금제 활용
+- **🎯 높은 정확도**: Claude의 우수한 한글 OCR 성능으로 95%+ 정확도
 
 ## 📦 설치
 
@@ -77,10 +81,11 @@ starvalley-menu today
 
 ### 데이터 플로우
 1. **로컬 Cron**: 매일 오전 08:30 자동 실행
-2. **이미지 스크래핑**: Star Valley 카카오 채널에서 메뉴 이미지 수집
-3. **Claude Code 분석**: 사용자가 Claude Code로 이미지에서 메뉴 텍스트 추출
-4. **데이터 저장**: GitHub 저장소에 JSON 형태로 저장
-5. **실시간 조회**: 사용자 CLI에서 GitHub API로 실시간 조회
+2. **이미지 스크래핑**: Star Valley 카카오 채널에서 메뉴 이미지 자동 수집
+3. **자동 이미지 다운로드**: 임시 파일로 이미지 다운로드
+4. **Claude CLI 분석**: 완전 자동화된 Claude CLI를 통한 메뉴 텍스트 추출
+5. **데이터 저장**: GitHub 저장소에 JSON 형태로 자동 저장
+6. **실시간 조회**: 사용자 CLI에서 GitHub API로 실시간 조회
 
 ## 🔧 관리자용 설정
 
@@ -103,15 +108,17 @@ GITHUB_BRANCH=main
 
 3. **수동 실행**
 ```bash
-# 메뉴 처리 수동 실행
-node daily-menu-processor.js
+# 완전 자동화 메뉴 처리 실행
+node daily-menu-processor-automated.js
 
-# 또는 쉘 스크립트로 실행
+# 또는 쉘 스크립트로 실행 (권장)
 ./run-daily-menu.sh
 ```
 
 ### 주의사항
 - 컴퓨터가 매일 오전 08:30에 켜져 있어야 합니다
+- Claude CLI가 설치되어 있어야 합니다 (`brew install claudeai/claude/claude`)
+- Claude Max 구독이 필요합니다 (API 토큰 설정 필요)
 - macOS에서는 터미널 앱에 자동화 권한이 필요할 수 있습니다
 - 시스템 환경설정 > 보안 및 개인 정보 보호 > 개인 정보 보호 > 자동화에서 확인하세요
 
@@ -140,24 +147,24 @@ crontab -l
 ### 프로젝트 구조
 ```
 starvalley-food/
-├── src/                    # npm 패키지 클라이언트 코드
-│   ├── cli.js             # CLI 인터페이스
-│   ├── client.js          # GitHub API 클라이언트
-│   └── index.js           # 패키지 엔트리포인트
-├── backend/               # 백엔드 처리 로직
-│   ├── scraper.js         # 이미지 스크래핑
-│   └── uploader.js        # GitHub 업로드
-├── daily-menu-processor.js # 메인 처리 스크립트
-├── run-daily-menu.sh      # 자동화 실행 스크립트
-├── setup-cron.sh          # Cron 설정 스크립트
-├── logs/                  # 실행 로그 디렉토리
-└── legacy/                # 이전 버전 코드
+├── src/                           # npm 패키지 클라이언트 코드
+│   ├── cli.js                    # CLI 인터페이스
+│   ├── client.js                 # GitHub API 클라이언트
+│   └── index.js                  # 패키지 엔트리포인트
+├── daily-menu-processor-automated.js  # 완전 자동화 처리 스크립트
+├── daily-menu-processor.js       # 수동 입력 처리 스크립트 (백업용)
+├── run-daily-menu.sh             # 자동화 실행 스크립트
+├── setup-cron.sh                 # Cron 설정 스크립트
+├── logs/                         # 실행 로그 디렉토리
+└── data/                         # 메뉴 데이터 저장소
 ```
 
 ### 기술 특징
-- **Claude Code 활용**: 우수한 이미지 분석 성능과 무료 사용
+- **Claude CLI 완전 자동화**: 이미지 다운로드부터 분석까지 무인 실행
 - **로컬 자동화**: Cron을 이용한 안정적인 스케줄링
 - **실시간 조회**: GitHub에서 실시간 데이터 조회
+- **높은 정확도**: Claude의 우수한 한글 OCR 성능
+- **비용 효율성**: Claude Max 구독으로 무제한 사용
 
 ## 🐛 문제 해결
 
@@ -194,12 +201,14 @@ npm install -g starvalley-food
 
 ## 📈 로드맵
 
+- [x] Claude CLI 완전 자동화 (v3.0 완료)
+- [x] npm 패키지 배포 (v3.0 완료)
 - [ ] 주간 메뉴 미리보기
 - [ ] 알레르기/선호도 필터링
 - [ ] 영양정보 표시
 - [ ] 모바일 앱 연동
 - [ ] 다른 구내식당 지원
-- [ ] Claude Code API 자동화 개선
+- [ ] Docker 컨테이너 지원
 
 ## 🤝 기여하기
 

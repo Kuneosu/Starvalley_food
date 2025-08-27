@@ -1,0 +1,37 @@
+# 관리자용 스크립트 (배포에서 제외)
+daily-menu-processor*.js
+run-daily-menu.sh
+setup-cron.sh
+debug-*.js
+test-*.js
+test.js
+
+# Legacy 및 개발용 파일들
+legacy/
+manual/
+logs/
+data/
+temp_menu_image.jpg
+crontab_backup*
+
+# OCR 훈련 데이터 (용량이 큼)
+*.traineddata
+
+# 환경 설정 파일들
+.env*
+.claude/
+*.log
+
+# 백업 및 임시 파일들
+*.tgz
+*.tar.gz
+node_modules/
+*.tmp
+
+# Git 파일들
+.git/
+.gitignore
+
+# macOS 파일들
+.DS_Store
+*.DS_Store
