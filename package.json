@@ -1,0 +1,46 @@
+{
+  "name": "starvalley-food",
+  "version": "2.0.0",
+  "description": "Star Valley 구내식당 메뉴 CLI 도구 - OpenAI 기반 클라우드 버전",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "starvalley-menu": "./src/cli.js",
+    "sv-menu": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node src/cli.js today",
+    "manual": "node manual/run.js",
+    "dev": "node src/cli.js"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1",
+    "puppeteer": "^21.5.2",
+    "openai": "^4.20.1",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0"
+  },
+  "keywords": [
+    "starvalley",
+    "cafeteria",
+    "menu",
+    "cli",
+    "food",
+    "korean"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kuneosu/Starvalley_food.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

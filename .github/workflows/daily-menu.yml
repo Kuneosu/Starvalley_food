@@ -1,0 +1,112 @@
+name: Daily Menu Update
+
+on:
+  schedule:
+    # 매일 오전 8시 (UTC 23:00 = KST 08:00)
+    - cron: '0 23 * * *'
+  workflow_dispatch: # 수동 실행 허용
+    inputs:
+      force_update:
+        description: '강제 업데이트 (true/false)'
+        required: false
+        default: 'false'
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_OWNER: ${{ github.repository_owner }}
+  GITHUB_REPO: ${{ github.event.repository.name }}
+  GITHUB_BRANCH: main
+
+jobs:
+  update-menu:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🛒 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: 📥 Install dependencies
+        run: npm install --production
+        
+      - name: 🔧 Install additional dependencies for GitHub Actions
+        run: npm install dotenv
+        
+      - name: 🍽️ Process menu data
+        id: process_menu
+        run: |
+          echo "Starting menu processing..."
+          cat > process_workflow.js << 'EOF'
+          import { processMenu, validateEnvironment } from './backend/processor.js';
+          import dotenv from 'dotenv';
+          
+          // GitHub Actions 환경변수는 자동으로 로드됨
+          async function main() {
+            try {
+              console.log('🚀 GitHub Actions - 메뉴 처리 시작');
+              
+              // 환경변수 확인
+              const missing = validateEnvironment();
+              if (missing.length > 0) {
+                console.error('Missing environment variables:', missing);
+                process.exit(1);
+              }
+              
+              // 메뉴 처리 실행
+              const result = await processMenu(true);
+              
+              console.log('✅ 메뉴 처리 완료');
+              console.log(`📊 메뉴 개수: ${result.menuItems.length}`);
+              console.log(`⏱️ 소요시간: ${(result.duration / 1000).toFixed(2)}초`);
+              console.log(`🔗 파일 URL: ${result.fileUrl}`);
+              
+              // GitHub Actions 출력 설정
+              console.log(`::set-output name=success::true`);
+              console.log(`::set-output name=menu_count::${result.menuItems.length}`);
+              console.log(`::set-output name=file_url::${result.fileUrl}`);
+              console.log(`::set-output name=duration::${result.duration}`);
+              
+            } catch (error) {
+              console.error('❌ 처리 실패:', error.message);
+              console.log(`::set-output name=success::false`);
+              console.log(`::set-output name=error::${error.message}`);
+              process.exit(1);
+            }
+          }
+          
+          main();
+          EOF
+          
+          node process_workflow.js
+          
+      - name: 📊 Create summary
+        if: always()
+        run: |
+          if [ "${{ steps.process_menu.outputs.success }}" == "true" ]; then
+            echo "## ✅ Menu Update Success" >> $GITHUB_STEP_SUMMARY
+            echo "- **Menu Items:** ${{ steps.process_menu.outputs.menu_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Duration:** $((${{ steps.process_menu.outputs.duration }} / 1000))s" >> $GITHUB_STEP_SUMMARY
+            echo "- **File URL:** ${{ steps.process_menu.outputs.file_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Time:** $(date '+%Y-%m-%d %H:%M:%S KST')" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Menu Update Failed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Error:** ${{ steps.process_menu.outputs.error }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Time:** $(date '+%Y-%m-%d %H:%M:%S KST')" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: 📱 Notify on failure
+        if: failure()
+        run: |
+          echo "Menu update failed. Please check the workflow logs."
+          # 필요시 Slack, Discord 등으로 알림 추가 가능
+          
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          rm -f process_workflow.js
