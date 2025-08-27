@@ -39,8 +39,7 @@ jobs:
         
       - name: 🌐 Install Chrome for Puppeteer
         run: |
-          npx puppeteer browsers install chrome
-          # Linux 환경용 추가 의존성 설치
+          # Linux 환경용 의존성 먼저 설치
           sudo apt-get update
           sudo apt-get install -y \
             ca-certificates \
@@ -56,7 +55,6 @@ jobs:
             libexpat1 \
             libfontconfig1 \
             libgbm1 \
-            libgcc1 \
             libglib2.0-0 \
             libgtk-3-0 \
             libnspr4 \
@@ -79,7 +77,17 @@ jobs:
             libxtst6 \
             lsb-release \
             wget \
-            xdg-utils
+            xdg-utils \
+            gnupg2
+          
+          # Chrome 설치
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          
+          # Puppeteer Chrome 확인
+          google-chrome --version
         
       - name: 🍽️ Process menu data
         id: process_menu
