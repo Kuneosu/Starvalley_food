@@ -146,13 +146,11 @@ program
         // 최근 데이터 확인
         try {
           const menuData = await fetchMenuData();
-          const updateTime = new Date(menuData.updated_at);
-          const koreanTime = updateTime.toLocaleString('ko-KR', {
-            timeZone: 'Asia/Seoul'
-          });
           
-          console.log(chalk.green(`📊 최근 데이터: ${menuData.menu.length}개 메뉴`));
-          console.log(chalk.green(`🕐 마지막 업데이트: ${koreanTime}`));
+          console.log(chalk.green(`📊 최근 데이터: ${menuData.menuItems.length}개 메뉴`));
+          if (menuData.timestamp) {
+            console.log(chalk.green(`🕐 마지막 업데이트: ${menuData.timestamp}`));
+          }
           
         } catch (error) {
           console.log(chalk.yellow('⚠️ 최근 메뉴 데이터 확인 실패'));

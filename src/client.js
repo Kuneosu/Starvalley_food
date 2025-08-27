@@ -8,7 +8,29 @@ import chalk from 'chalk';
  */
 export async function fetchMenuData(date = null) {
   try {
-    const targetDate = date || new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    // 오후 3시 이후인지 확인
+    const now = new Date();
+    const hour = now.getHours();
+    const isAfter3PM = hour >= 15;
+    
+    let targetDate;
+    if (date) {
+      // 날짜가 명시적으로 지정된 경우
+      targetDate = date;
+    } else {
+      // 날짜가 지정되지 않은 경우 (today 명령)
+      if (isAfter3PM) {
+        // 오후 3시 이후면 다음날 날짜 사용
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        targetDate = tomorrow.toISOString().slice(2, 10).replace(/-/g, '');
+        console.log('⏰ 오후 3시 이후 - 내일 메뉴를 표시합니다');
+      } else {
+        // 오후 3시 이전이면 오늘 날짜 사용
+        targetDate = now.toISOString().slice(2, 10).replace(/-/g, '');
+      }
+    }
+    
     const fileName = `starvalley_food_${targetDate}.json`;
     const baseUrl = 'https://raw.githubusercontent.com/Kuneosu/Starvalley_food/main/data';
     const fileUrl = `${baseUrl}/${fileName}`;
@@ -31,7 +53,11 @@ export async function fetchMenuData(date = null) {
     
     const data = await response.json();
     
-    console.log(`✅ 데이터 로드 완료: ${data.menu.length}개 메뉴`);
+    if (!data.menuItems || !Array.isArray(data.menuItems)) {
+      throw new Error('잘못된 데이터 형식입니다.');
+    }
+    
+    console.log(`✅ 데이터 로드 완료: ${data.menuItems.length}개 메뉴`);
     
     return data;
     
@@ -89,7 +115,7 @@ export async function findRecentMenuData() {
  * @param {boolean} showDetails - 상세 정보 표시 여부
  */
 export function displayMenu(menuData, showDetails = true) {
-  if (!menuData || !menuData.menu) {
+  if (!menuData || !menuData.menuItems) {
     console.log(chalk.red('❌ 유효하지 않은 메뉴 데이터입니다.'));
     return;
   }
@@ -101,33 +127,22 @@ export function displayMenu(menuData, showDetails = true) {
   
   // 날짜 정보
   if (menuData.date) {
-    const date = new Date(menuData.date);
-    const koreanDate = date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long'
-    });
-    console.log(chalk.cyan(`📅 ${koreanDate}`));
+    console.log(chalk.cyan(`📅 ${menuData.date}`));
   }
   
   // 메뉴 목록
   console.log(chalk.green('\n📋 오늘의 메뉴:'));
-  menuData.menu.forEach((item, index) => {
+  menuData.menuItems.forEach((item, index) => {
     const emoji = getMenuEmoji(item);
     console.log(chalk.white(`   ${emoji} ${item}`));
   });
   
   // 상세 정보
   if (showDetails) {
-    console.log(chalk.gray(`\n📊 총 ${menuData.total_items || menuData.menu.length}개 메뉴`));
+    console.log(chalk.gray(`\n📊 총 ${menuData.count || menuData.menuItems.length}개 메뉴`));
     
-    if (menuData.updated_at) {
-      const updateTime = new Date(menuData.updated_at);
-      const koreanTime = updateTime.toLocaleString('ko-KR', {
-        timeZone: 'Asia/Seoul'
-      });
-      console.log(chalk.gray(`🕐 업데이트: ${koreanTime}`));
+    if (menuData.timestamp) {
+      console.log(chalk.gray(`🕐 업데이트: ${menuData.timestamp}`));
     }
   }
   
