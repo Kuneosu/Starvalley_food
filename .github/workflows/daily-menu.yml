@@ -37,56 +37,31 @@ jobs:
       - name: 🔧 Install additional dependencies for GitHub Actions
         run: npm install dotenv
         
-      - name: 🌐 Setup Puppeteer with Chrome
+      - name: 🌐 Setup Chrome and dependencies
         run: |
-          # Puppeteer가 Chrome을 자동으로 다운로드하도록 설정
-          echo "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false" >> $GITHUB_ENV
-          echo "PUPPETEER_EXECUTABLE_PATH=" >> $GITHUB_ENV
+          # Chrome이 이미 설치되어 있는지 확인
+          if command -v google-chrome &> /dev/null; then
+            echo "✅ Chrome already installed: $(google-chrome --version)"
+          else
+            echo "❌ Chrome not found, installing..."
+            
+            # Chrome 설치
+            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+            echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable
+          fi
           
-          # Linux 의존성 설치
-          sudo apt-get update
-          sudo apt-get install -y \
-            gconf-service \
-            libasound2 \
-            libatk1.0-0 \
-            libc6 \
-            libcairo2 \
-            libcups2 \
-            libdbus-1-3 \
-            libexpat1 \
-            libfontconfig1 \
-            libgcc1 \
-            libgconf-2-4 \
-            libgdk-pixbuf2.0-0 \
-            libglib2.0-0 \
-            libgtk-3-0 \
-            libnspr4 \
-            libpango-1.0-0 \
-            libpangocairo-1.0-0 \
-            libstdc++6 \
-            libx11-6 \
-            libx11-xcb1 \
-            libxcb1 \
-            libxcomposite1 \
-            libxcursor1 \
-            libxdamage1 \
-            libxext6 \
-            libxfixes3 \
-            libxi6 \
-            libxrandr2 \
-            libxrender1 \
-            libxss1 \
-            libxtst6 \
-            ca-certificates \
-            fonts-liberation \
-            libappindicator1 \
-            libnss3 \
-            lsb-release \
-            xdg-utils \
-            wget
+          # Puppeteer가 시스템 Chrome을 사용하도록 설정
+          echo "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true" >> $GITHUB_ENV
+          echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome" >> $GITHUB_ENV
           
-          # Puppeteer 재설치로 Chrome 다운로드
-          npm install puppeteer
+          # Chrome 버전 확인
+          google-chrome --version
+          
+          # Chrome 실행 테스트
+          google-chrome --headless --no-sandbox --disable-setuid-sandbox --dump-dom https://www.google.com > /dev/null
+          echo "✅ Chrome headless test successful"
         
       - name: 🍽️ Process menu data
         id: process_menu
