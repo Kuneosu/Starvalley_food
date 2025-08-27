@@ -5,8 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "starvalley-menu": "./src/cli.js",
-    "sv-menu": "./src/cli.js"
+    "st-food": "./src/cli.js",
+    "starvalley-menu": "./src/cli.js"
   },
   "scripts": {
     "start": "node src/cli.js",

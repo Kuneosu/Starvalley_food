@@ -4,62 +4,98 @@ import puppeteer from 'puppeteer';
  * Star Valley 카카오 채널에서 메뉴 이미지 URL을 가져옵니다.
  * @returns {Promise<string>} 메뉴 이미지 URL
  */
-export async function scrapeMenuImage() {
-  const browser = await puppeteer.launch({ 
-    headless: "new",
-    args: [
-      '--no-sandbox', 
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu'
-    ]
-    // GitHub Actions에서는 자동으로 설치된 Chrome 사용
-  });
+export async function scrapeMenuImage(retryCount = 0) {
+  const maxRetries = 2;
   
+  let browser;
   try {
+    browser = await puppeteer.launch({ 
+      headless: "new",
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--single-process',
+        '--no-zygote'
+      ],
+      executablePath: process.platform === 'darwin' 
+        ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        : undefined
+    });
+    
     const page = await browser.newPage();
     
-    // User-Agent 설정
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    // Set viewport and user agent like legacy code
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
-    // Star Valley 카카오톡 채널 페이지 방문
-    await page.goto('https://pf.kakao.com/_dYJxhG/posts', {
+    // Use the working URL from legacy code
+    await page.goto('https://pf.kakao.com/_axkixdn/posts', {
       waitUntil: 'networkidle2',
       timeout: 30000
     });
     
-    // 메뉴 이미지 찾기 - 최신 게시물의 이미지
+    // Wait for content to load
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Use the working selector logic from legacy code
     const imageUrl = await page.evaluate(() => {
-      // 게시물 이미지들을 찾습니다
-      const images = document.querySelectorAll('img[src*="postfiles.pstatic.net"], img[src*="kakaocdn.net"], img[src*="pstatic.net"]');
+      // Find elements with background images (menu images are here)
+      const thumbElements = document.querySelectorAll('.wrap_fit_thumb');
       
-      for (let img of images) {
-        const src = img.src;
-        // 메뉴판으로 보이는 이미지 패턴 확인
-        if (src && (src.includes('jpg') || src.includes('jpeg') || src.includes('png'))) {
-          // 이미지 크기가 충분히 큰지 확인 (메뉴판은 보통 큰 이미지)
-          if (img.width > 200 && img.height > 200) {
-            return src;
+      if (thumbElements.length > 0) {
+        // Get the first post's background image (most recent menu)
+        const firstThumb = thumbElements[0];
+        const bgImage = window.getComputedStyle(firstThumb).backgroundImage;
+        
+        if (bgImage && bgImage !== 'none') {
+          const match = bgImage.match(/url\(["']?([^"']+)["']?\)/);
+          if (match && match[1]) {
+            // The image URL is already high quality (img_xl.jpg)
+            return match[1];
           }
         }
       }
       
-      // 대안: 모든 이미지 중 첫 번째
-      if (images.length > 0) {
-        return images[0].src;
+      // Fallback: try to find any kakaocdn image
+      const allElements = Array.from(document.querySelectorAll('*'));
+      
+      for (const el of allElements) {
+        const style = window.getComputedStyle(el);
+        if (style.backgroundImage && style.backgroundImage !== 'none') {
+          const match = style.backgroundImage.match(/url\(["']?([^"']+)["']?\)/);
+          if (match && match[1] && match[1].includes('kakaocdn') && match[1].includes('img_xl')) {
+            return match[1];
+          }
+        }
       }
       
       return null;
     });
     
     if (!imageUrl) {
-      throw new Error('메뉴 이미지를 찾을 수 없습니다.');
+      throw new Error('No menu image found on the page. The page structure might have changed.');
     }
     
     return imageUrl;
     
+  } catch (error) {
+    if (retryCount < maxRetries) {
+      console.log(`Retrying scraping... (${retryCount + 1}/${maxRetries + 1})`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return scrapeMenuImage(retryCount + 1);
+    }
+    
+    throw new Error(`Web scraping failed after ${maxRetries + 1} attempts: ${error.message}`);
   } finally {
-    await browser.close();
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        // Ignore close errors
+      }
+    }
   }
 }
 

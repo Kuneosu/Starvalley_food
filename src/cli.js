@@ -8,7 +8,7 @@ import { fetchMenuData, displayMenu, getAvailableDates, checkConnection } from '
 const program = new Command();
 
 program
-  .name('starvalley-menu')
+  .name('st-food')
   .description('Star Valley 구내식당 메뉴 조회 CLI')
   .version('2.0.0');
 
@@ -120,8 +120,8 @@ program
       }
       
       console.log(chalk.blue('='.repeat(30)));
-      console.log(chalk.cyan(`\n💡 사용법: starvalley-menu date <YYMMDD>`));
-      console.log(chalk.cyan(`   예시: starvalley-menu date ${dates[0]}`));
+      console.log(chalk.cyan(`\n💡 사용법: st-food date <YYMMDD>`));
+      console.log(chalk.cyan(`   예시: st-food date ${dates[0]}`));
       
     } catch (error) {
       spinner.fail('목록 조회 실패');
@@ -187,10 +187,10 @@ program
       console.error(chalk.red(`❌ ${error.message}`));
       
       console.log(chalk.yellow('\n💡 사용 가능한 명령어:'));
-      console.log(chalk.white('  starvalley-menu today     - 오늘의 메뉴'));
-      console.log(chalk.white('  starvalley-menu list      - 날짜 목록'));
-      console.log(chalk.white('  starvalley-menu status    - 연결 상태'));
-      console.log(chalk.white('  starvalley-menu --help    - 도움말'));
+      console.log(chalk.white('  st-food today     - 오늘의 메뉴'));
+      console.log(chalk.white('  st-food list      - 날짜 목록'));
+      console.log(chalk.white('  st-food status    - 연결 상태'));
+      console.log(chalk.white('  st-food --help    - 도움말'));
       
       process.exit(1);
     }

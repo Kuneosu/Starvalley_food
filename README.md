@@ -18,68 +18,43 @@ Star Valley 구내식당 메뉴 조회 CLI 도구입니다. OpenAI GPT-4o-mini�
 npm install -g starvalley-food
 ```
 
-### 로컬 실행
-```bash
-git clone https://github.com/Kuneosu/Starvalley_food.git
-cd Starvalley_food
-npm install
-```
-
 ## 🍽️ 사용법
 
 ### 기본 사용법
 ```bash
 # 오늘의 메뉴 조회
-starvalley-menu
+st-food
 # 또는
-starvalley-menu today
+st-food today
 
 # 특정 날짜 메뉴 조회 (YYMMDD 형식)
-starvalley-menu date 240827
+st-food date 240827
 
 # 사용 가능한 날짜 목록 보기
-starvalley-menu list
+st-food list
 
 # 연결 상태 확인
-starvalley-menu status
+st-food status
 ```
 
 ### 고급 옵션
 ```bash
 # JSON 형태로 출력
-starvalley-menu today --raw
+st-food today --raw
 
 # 상세 정보 없이 메뉴만 출력
-starvalley-menu today --no-details
+st-food today --no-details
 
 # 최근 10개 날짜만 보기
-starvalley-menu list --limit 10
+st-food list --limit 10
 ```
 
 ### 별칭 사용
 ```bash
-# 짧은 명령어
-sv-menu today
-sv-menu date 240827
+# 긴 명령어도 지원
+starvalley-menu today
 ```
 
-## 🔧 수동 실행 (관리자용)
-
-메뉴 데이터를 수동으로 업데이트하려면:
-
-```bash
-# 저장소 클론 후
-git clone https://github.com/Kuneosu/Starvalley_food.git
-cd Starvalley_food
-npm install
-
-# 환경변수 설정 (.env 파일 생성)
-cp .env.example .env
-# .env 파일에 API 키 설정
-
-# 수동 실행 (비밀번호: 0070)
-npm run manual
-```
 
 ## 🏗️ 아키텍처
 
@@ -118,27 +93,6 @@ npm run manual
 | **범용성** | 고사양 컴퓨터만 | 모든 환경 |
 | **유지비용** | 무료 (로컬) | $0.01/일 미만 |
 
-## 🔑 환경 설정 (개발자/관리자용)
-
-GitHub 저장소를 운영하려면 다음 환경변수가 필요합니다:
-
-### GitHub Secrets 설정
-```bash
-# GitHub 저장소의 Settings > Secrets and variables > Actions에 추가
-OPENAI_API_KEY=your_openai_api_key
-GITHUB_TOKEN=your_github_personal_access_token
-```
-
-### 로컬 개발용 환경변수
-```bash
-# .env 파일
-OPENAI_API_KEY=your_openai_api_key
-GITHUB_TOKEN=your_github_personal_access_token
-GITHUB_OWNER=Kuneosu
-GITHUB_REPO=Starvalley_food
-GITHUB_BRANCH=main
-MANUAL_PASSWORD=0070
-```
 
 ## 🛠️ 개발자 가이드
 
@@ -159,22 +113,10 @@ starvalley-food/
 └── legacy/           # 이전 버전 코드
 ```
 
-### API 사용량
-- **OpenAI**: 1일 1회, 이미지 분석 (~$0.005/회)
-- **GitHub API**: 무제한 (public repository)
-- **총 비용**: 월 $0.15 미만
-
-### 로컬 테스트
-```bash
-# 패키지 테스트
-npm test
-
-# 수동 스크립트 테스트
-npm run manual
-
-# 개발 모드 실행
-npm run dev
-```
+### 기술 특징
+- **자동 업데이트**: GitHub Actions으로 매일 자동 메뉴 업데이트
+- **실시간 조회**: GitHub에서 실시간 데이터 조회
+- **AI 기반**: OpenAI GPT-4o-mini로 정확한 메뉴 인식
 
 ## 🐛 문제 해결
 
@@ -183,10 +125,10 @@ npm run dev
 **메뉴 데이터가 없어요**
 ```bash
 # 연결 상태 확인
-starvalley-menu status
+st-food status
 
 # 사용 가능한 날짜 확인
-starvalley-menu list
+st-food list
 ```
 
 **연결 실패**
@@ -204,17 +146,6 @@ npm uninstall -g starvalley-food
 npm install -g starvalley-food
 ```
 
-### 관리자 문제
-
-**GitHub Actions 실패**
-- OpenAI API 키 확인
-- GitHub 토큰 권한 확인 (Contents: Write)
-- 저장소 접근 권한 확인
-
-**수동 실행 실패**
-- .env 파일 설정 확인
-- 환경변수 로딩 확인
-- API 키 유효성 확인
 
 ## 📈 로드맵
 
