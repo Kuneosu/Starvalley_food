@@ -72,14 +72,14 @@ async function main() {
     console.log(chalk.green('✅ 비밀번호 확인 완료\n'));
     
     // 실행 확인
-    const rl = createInterface({
+    const rl2 = createInterface({
       input: process.stdin,
       output: process.stdout
     });
     
     const confirm = await new Promise((resolve) => {
-      rl.question(chalk.cyan('메뉴 데이터를 처리하시겠습니까? (y/N): '), (answer) => {
-        rl.close();
+      rl2.question(chalk.cyan('메뉴 데이터를 처리하시겠습니까? (y/N): '), (answer) => {
+        rl2.close();
         resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
       });
     });

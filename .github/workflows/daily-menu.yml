@@ -38,6 +38,9 @@ jobs:
       - name: 🔧 Install additional dependencies for GitHub Actions
         run: npm install dotenv
         
+      - name: 🌐 Install Chrome for Puppeteer
+        run: npx puppeteer browsers install chrome
+        
       - name: 🍽️ Process menu data
         id: process_menu
         run: |

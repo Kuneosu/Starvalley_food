@@ -7,8 +7,13 @@ import puppeteer from 'puppeteer';
 export async function scrapeMenuImage() {
   const browser = await puppeteer.launch({ 
     headless: "new",
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    executablePath: process.env.CHROME_PATH || undefined // 시스템 Chrome 사용
+    args: [
+      '--no-sandbox', 
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu'
+    ]
+    // GitHub Actions에서는 자동으로 설치된 Chrome 사용
   });
   
   try {
