@@ -1,6 +1,6 @@
 {
   "name": "starvalley-food",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Star Valley 구내식당 메뉴 CLI 도구 - Claude Code 기반 로컬 실행 버전",
   "type": "module",
   "main": "src/index.js",
