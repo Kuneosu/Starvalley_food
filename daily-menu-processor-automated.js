@@ -18,17 +18,27 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  */
 async function scrapeMenuData() {
   console.log('🔧 브라우저 초기화 중...');
-  const browser = await puppeteer.launch({
+
+  // GitHub Actions 환경인지 확인
+  const isGitHubActions = process.env.GITHUB_ACTIONS === 'true';
+
+  const launchOptions = {
     headless: "new",
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     args: [
-      '--no-sandbox', 
+      '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor'
     ]
-  });
+  };
+
+  // 로컬 macOS 환경에서만 Chrome 경로 지정
+  if (!isGitHubActions && process.platform === 'darwin') {
+    launchOptions.executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  }
+
+  const browser = await puppeteer.launch(launchOptions);
   
   try {
     const page = await browser.newPage();
