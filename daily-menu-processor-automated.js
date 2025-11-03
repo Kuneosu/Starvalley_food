@@ -351,13 +351,20 @@ async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
  */
 async function checkGitHubConnection() {
   try {
-    const response = await fetch('https://api.github.com/user', {
+    // GitHub Actions 환경에서는 저장소 엔드포인트 사용
+    const owner = process.env.GITHUB_OWNER;
+    const repo = process.env.GITHUB_REPO;
+    const endpoint = owner && repo
+      ? `https://api.github.com/repos/${owner}/${repo}`
+      : 'https://api.github.com/user';
+
+    const response = await fetch(endpoint, {
       headers: {
         'Authorization': `token ${process.env.GITHUB_TOKEN}`,
         'User-Agent': 'starvalley-food-cli'
       }
     });
-    
+
     return response.ok;
   } catch (error) {
     return false;
