@@ -20,14 +20,20 @@ export async function fetchMenuData(date = null) {
     } else {
       // 날짜가 지정되지 않은 경우 (today 명령)
       if (isAfter3PM) {
-        // 오후 3시 이후면 다음날 날짜 사용
+        // 오후 3시 이후면 다음날 날짜 사용 (로컬 시간 기준)
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        targetDate = tomorrow.toISOString().slice(2, 10).replace(/-/g, '');
+        const year = tomorrow.getFullYear().toString().slice(2);
+        const month = (tomorrow.getMonth() + 1).toString().padStart(2, '0');
+        const day = tomorrow.getDate().toString().padStart(2, '0');
+        targetDate = year + month + day;
         console.log('⏰ 오후 3시 이후 - 내일 메뉴를 표시합니다');
       } else {
-        // 오후 3시 이전이면 오늘 날짜 사용
-        targetDate = now.toISOString().slice(2, 10).replace(/-/g, '');
+        // 오후 3시 이전이면 오늘 날짜 사용 (로컬 시간 기준)
+        const year = now.getFullYear().toString().slice(2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        targetDate = year + month + day;
       }
     }
     

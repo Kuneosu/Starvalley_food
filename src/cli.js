@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
+import clipboardy from 'clipboardy';
 import { fetchMenuData, displayMenu, getAvailableDates, checkConnection } from './client.js';
 
 const program = new Command();
@@ -10,7 +11,7 @@ const program = new Command();
 program
   .name('st-food')
   .description('Star Valley 구내식당 메뉴 조회 CLI')
-  .version('2.0.0');
+  .version('3.4.2');
 
 program
   .command('today')
@@ -45,6 +46,47 @@ program
   });
 
 program
+  .command('next')
+  .description('내일의 메뉴를 조회합니다')
+  .option('--no-details', '상세 정보 숨기기')
+  .option('--raw', 'JSON 형태로 출력')
+  .action(async (options) => {
+    const spinner = ora('내일 메뉴 데이터 조회 중...').start();
+    
+    try {
+      // 내일 날짜 계산 (로컬 시간 기준)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const year = tomorrow.getFullYear().toString().slice(2);
+      const month = (tomorrow.getMonth() + 1).toString().padStart(2, '0');
+      const day = tomorrow.getDate().toString().padStart(2, '0');
+      const tomorrowDate = year + month + day;
+      
+      const menuData = await fetchMenuData(tomorrowDate);
+      spinner.stop();
+      
+      if (options.raw) {
+        console.log(JSON.stringify(menuData, null, 2));
+      } else {
+        console.log(chalk.blue('📅 내일 메뉴'));
+        displayMenu(menuData, options.details);
+      }
+      
+    } catch (error) {
+      spinner.fail('내일 메뉴 조회 실패');
+      
+      if (error.message.includes('찾을 수 없습니다')) {
+        console.log(chalk.yellow('📅 아직 내일 식단표가 업데이트되지 않았습니다.'));
+        console.log(chalk.gray('💡 보통 오전 4~5시경에 업데이트됩니다.'));
+      } else {
+        console.error(chalk.red(`❌ ${error.message}`));
+      }
+      
+      process.exit(1);
+    }
+  });
+
+program
   .command('date <date>')
   .description('특정 날짜의 메뉴를 조회합니다 (YYMMDD 형식)')
   .option('--no-details', '상세 정보 숨기기')
@@ -71,6 +113,63 @@ program
     } catch (error) {
       spinner.fail('메뉴 조회 실패');
       console.error(chalk.red(`❌ ${error.message}`));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('copy')
+  .description('오늘의 메뉴를 클립보드에 복사합니다')
+  .option('--simple', '간단한 형식으로 복사')
+  .action(async (options) => {
+    const spinner = ora('메뉴 데이터 조회 중...').start();
+    
+    try {
+      const menuData = await fetchMenuData();
+      spinner.stop();
+      
+      let copyText = '';
+      
+      if (options.simple) {
+        // 간단한 형식
+        copyText = `📅 ${menuData.date || '오늘의 메뉴'}\n\n`;
+        copyText += menuData.menuItems.join('\n');
+      } else {
+        // 전체 형식
+        copyText = `🍽️ Star Valley 구내식당 메뉴\n`;
+        copyText += `${'='.repeat(40)}\n`;
+        copyText += `📅 ${menuData.date || '오늘의 메뉴'}\n\n`;
+        copyText += '📋 메뉴:\n';
+        menuData.menuItems.forEach(item => {
+          copyText += `• ${item}\n`;
+        });
+        copyText += `\n총 ${menuData.count || menuData.menuItems.length}개 메뉴`;
+        if (menuData.timestamp) {
+          copyText += `\n업데이트: ${menuData.timestamp}`;
+        }
+      }
+      
+      // 클립보드에 복사
+      await clipboardy.write(copyText);
+      
+      console.log(chalk.green('✅ 메뉴가 클립보드에 복사되었습니다!'));
+      
+      // 복사된 내용 미리보기
+      console.log(chalk.gray('\n📋 복사된 내용:'));
+      console.log(chalk.gray('─'.repeat(40)));
+      console.log(copyText);
+      console.log(chalk.gray('─'.repeat(40)));
+      
+    } catch (error) {
+      spinner.fail('메뉴 조회 실패');
+      console.error(chalk.red(`❌ ${error.message}`));
+      
+      // 연결 문제인지 확인
+      const isConnected = await checkConnection();
+      if (!isConnected) {
+        console.log(chalk.yellow('🌐 인터넷 연결을 확인해주세요.'));
+      }
+      
       process.exit(1);
     }
   });
