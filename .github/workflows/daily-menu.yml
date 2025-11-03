@@ -55,11 +55,3 @@ jobs:
           GITHUB_REPO: ${{ github.event.repository.name }}
           GITHUB_BRANCH: main
         run: node daily-menu-processor-automated.js
-
-      - name: Commit and push if changes
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add data/
-          git diff --staged --quiet || git commit -m "Auto update menu data [skip ci]"
-          git push
