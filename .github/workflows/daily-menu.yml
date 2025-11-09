@@ -4,7 +4,7 @@ on:
   schedule:
     # 월~목요일 한국 시간 오전 8시 (UTC 23시 전날)
     # 금요일(5), 토요일(6), 일요일(0) 제외
-    - cron: '0 23 * * 1-4'
+    - cron: '0 23 * * 0-3'
   workflow_dispatch: # 수동 실행 가능
 
 permissions:
