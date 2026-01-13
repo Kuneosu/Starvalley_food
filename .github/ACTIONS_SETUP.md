@@ -7,14 +7,14 @@
 
 GitHub Actions가 작동하려면 다음 Secrets를 설정해야 합니다:
 
-### 1. GEMINI_API_KEY 설정
+### 1. OPENAI_API_KEY 설정
 
 1. GitHub 저장소 페이지로 이동
 2. `Settings` → `Secrets and variables` → `Actions` 클릭
 3. `New repository secret` 버튼 클릭
 4. 다음 정보 입력:
-   - **Name**: `GEMINI_API_KEY`
-   - **Secret**: 현재 `.env` 파일의 `GEMINI_API_KEY` 값 복사해서 붙여넣기
+   - **Name**: `OPENAI_API_KEY`
+   - **Secret**: 현재 `.env` 파일의 `OPENAI_API_KEY` 값 복사해서 붙여넣기
 
 ### 2. GITHUB_TOKEN (자동 제공)
 
@@ -30,7 +30,7 @@ GitHub Actions가 작동하려면 다음 Secrets를 설정해야 합니다:
 ## 작동 방식
 
 1. **스크래핑**: Puppeteer로 카카오 채널 접속
-2. **이미지 분석**: Gemini API로 메뉴 추출
+2. **이미지 분석**: OpenAI Vision API로 메뉴 추출
 3. **데이터 저장**: `data/` 폴더에 JSON 파일 생성
 4. **자동 커밋**: GitHub Actions가 자동으로 커밋 및 푸시
 
@@ -46,13 +46,13 @@ GitHub 저장소 → `Actions` → 실행된 workflow 클릭 → 각 step 로그
 
 ### 스크래핑 실패
 - Actions 로그에서 에러 메시지 확인
-- Gemini API 키가 유효한지 확인
+- OpenAI API 키가 유효한지 확인
 - 카카오 채널 URL이 변경되지 않았는지 확인
 
 ## 비용 관리
 
 - **GitHub Actions**: 공개 저장소는 무료
-- **Gemini API**: 무료 tier 제한 확인 필요
+- **OpenAI API**: 사용량에 따른 비용 발생 (gpt-4o-mini 사용)
 - **저장소 용량**: 매일 작은 JSON 파일만 추가되므로 문제 없음
 
 ## 로컬 실행과의 차이

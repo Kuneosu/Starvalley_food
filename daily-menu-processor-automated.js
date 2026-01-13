@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import puppeteer from 'puppeteer';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// import { GoogleGenerativeAI } from '@google/generative-ai';  // Gemini API (주석처리)
+import OpenAI from 'openai';
 import fs from 'fs/promises';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
@@ -9,8 +10,13 @@ import dotenv from 'dotenv';
 // 환경변수 로드
 dotenv.config();
 
-// Gemini 클라이언트 초기화
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Gemini 클라이언트 초기화 (주석처리)
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// OpenAI 클라이언트 초기화
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 /**
  * Star Valley 카카오 채널에서 메뉴 이미지와 날짜 정보 스크래핑
@@ -216,14 +222,14 @@ async function scrapeMenuData() {
 }
 
 /**
- * Gemini Vision API를 사용한 이미지 분석 (재시도 로직 포함)
+ * OpenAI Vision API를 사용한 이미지 분석 (재시도 로직 포함)
  * @param {string} imageUrl - 분석할 이미지 URL
  * @param {string} dateText - 포스트 제목의 날짜 정보
  * @param {number} maxRetries - 최대 재시도 횟수 (기본값: 3)
  * @returns {Promise<Array<string>>} 추출된 메뉴 목록
  */
-async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
-  console.log('🤖 Gemini Vision API로 이미지 분석 중...');
+async function analyzeImageWithOpenAI(imageUrl, dateText, maxRetries = 3) {
+  console.log('🤖 OpenAI Vision API로 이미지 분석 중...');
   console.log(`📅 날짜 정보: ${dateText}`);
 
   let lastError = null;
@@ -247,9 +253,6 @@ async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
       const imageBuffer = await imageResponse.arrayBuffer();
       const base64Image = Buffer.from(imageBuffer).toString('base64');
 
-      // Gemini 모델 생성
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
       const prompt = `이 이미지는 한국 구내식당의 메뉴판입니다. 포스트 제목: "${dateText}"
 
 메뉴 항목들만 정확히 추출해서 JSON 배열 형태로 출력해주세요. 다른 설명 없이 JSON 배열만 반환해주세요.
@@ -260,21 +263,28 @@ async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
 - 한국어 음식명 그대로 유지
 - 날짜나 요일 정보는 제외`;
 
-      const imageParts = [
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: 'image/jpeg'
+      console.log('🔍 OpenAI API 분석 중...');
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
+                }
+              }
+            ]
           }
-        }
-      ];
+        ],
+        max_tokens: 1000
+      });
 
-      console.log('🔍 Gemini API 분석 중...');
-      const result = await model.generateContent([prompt, ...imageParts]);
-      const response = await result.response;
-      const content = response.text().trim();
-
-      console.log('Gemini 응답:', content);
+      const content = response.choices[0]?.message?.content?.trim();
+      console.log('OpenAI 응답:', content);
 
       // JSON 파싱 시도
       let menuItems;
@@ -309,12 +319,12 @@ async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
         }
       }
 
-      console.log(`✅ Gemini 분석 완료: ${menuItems.length}개 메뉴 추출`);
+      console.log(`✅ OpenAI 분석 완료: ${menuItems.length}개 메뉴 추출`);
       return menuItems;
 
     } catch (error) {
       lastError = error;
-      console.log(`❌ Gemini API 호출 실패 (시도 ${attempt}/${maxRetries}):`, error.message);
+      console.log(`❌ OpenAI API 호출 실패 (시도 ${attempt}/${maxRetries}):`, error.message);
 
       // 이미지 다운로드 타임아웃 관련 오류 처리
       if (error.message.includes('Timeout') || error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
@@ -325,8 +335,17 @@ async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
         }
       }
 
+      // Rate limit 오류 처리 (OpenAI 특화)
+      if (error.status === 429) {
+        console.log('⚠️ Rate limit 도달, 잠시 대기 후 재시도...');
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
+      }
+
       // 400 오류이지만 타임아웃이 아닌 경우는 재시도하지 않음
-      if (error.message.includes('400') && !error.message.includes('timeout') && !error.message.includes('Timeout')) {
+      if (error.status === 400 && !error.message.includes('timeout') && !error.message.includes('Timeout')) {
         throw new Error(`이미지 형식 또는 API 요청 오류: ${error.message}`);
       }
 
@@ -341,9 +360,24 @@ async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
   if (lastError.message.includes('Timeout') || lastError.message.includes('timeout') || lastError.message.includes('ETIMEDOUT')) {
     throw new Error(`이미지 다운로드 타임아웃: ${imageUrl} (${maxRetries}회 재시도 실패)`);
   } else {
-    throw new Error(`Gemini API 분석 실패: ${lastError.message} (${maxRetries}회 재시도 실패)`);
+    throw new Error(`OpenAI API 분석 실패: ${lastError.message} (${maxRetries}회 재시도 실패)`);
   }
 }
+
+/* ============================================
+ * Gemini Vision API 함수 (주석처리 - 참고용 보관)
+ * ============================================
+ *
+ * async function analyzeImageWithGemini(imageUrl, dateText, maxRetries = 3) {
+ *   console.log('🤖 Gemini Vision API로 이미지 분석 중...');
+ *   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+ *   const imageParts = [{ inlineData: { data: base64Image, mimeType: 'image/jpeg' } }];
+ *   const result = await model.generateContent([prompt, ...imageParts]);
+ *   const response = await result.response;
+ *   const content = response.text().trim();
+ *   // ... 나머지 로직은 OpenAI 버전과 동일
+ * }
+ * ============================================ */
 
 /**
  * GitHub 연결 상태 확인
@@ -427,7 +461,7 @@ async function uploadToGitHub(menuItems, menuDate, dateText) {
   // 파일 업로드/업데이트
   const uploadUrl = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/data/${fileName}`;
   const uploadData = {
-    message: `Update menu data for ${menuDate} (${dateText}) via Gemini Vision API`,
+    message: `Update menu data for ${menuDate} (${dateText}) via OpenAI Vision API`,
     content: encodedContent,
     branch: process.env.GITHUB_BRANCH || 'main'
   };
@@ -489,7 +523,7 @@ async function processMenuAutomated() {
       throw new Error(`메뉴 데이터 스크래핑 실패: ${scrapeError.message}`);
     }
     
-    // 3. 각 메뉴에 대해 Gemini 분석 및 업로드
+    // 3. 각 메뉴에 대해 OpenAI 분석 및 업로드
     for (let i = 0; i < menuDataList.length; i++) {
       const menuData = menuDataList[i];
 
@@ -497,9 +531,9 @@ async function processMenuAutomated() {
       console.log(`📅 메뉴 날짜: ${menuData.menuDate}`);
 
       try {
-        // Gemini Vision API 분석
-        console.log('🤖 Gemini Vision API 분석 중...');
-        const menuItems = await analyzeImageWithGemini(menuData.imageUrl, menuData.dateText);
+        // OpenAI Vision API 분석
+        console.log('🤖 OpenAI Vision API 분석 중...');
+        const menuItems = await analyzeImageWithOpenAI(menuData.imageUrl, menuData.dateText);
 
         console.log(`📋 추출된 메뉴 (${menuItems.length}개):`);
         menuItems.forEach((item, index) => {
@@ -530,8 +564,8 @@ async function processMenuAutomated() {
           console.log('💡 이미지 다운로드 타임아웃 - 카카오 서버 응답 지연으로 추정됩니다');
         } else if (error.message.includes('이미지 형식 또는 API 요청 오류')) {
           console.log('💡 이미지 형식이 지원되지 않습니다');
-        } else if (error.message.includes('Gemini API 분석 실패')) {
-          console.log('💡 Gemini API 연결 문제 또는 이미지 분석 실패');
+        } else if (error.message.includes('OpenAI API 분석 실패')) {
+          console.log('💡 OpenAI API 연결 문제 또는 이미지 분석 실패');
         } else if (error.message.includes('GitHub')) {
           console.log('💡 GitHub 업로드 실패 - 토큰과 권한을 확인하세요');
         } else {
@@ -610,10 +644,10 @@ async function processMenuAutomated() {
       console.log('💡 몇 분 후 다시 시도하시거나 네트워크 연결을 확인하세요');
     } else if (error.message.includes('이미지 형식 또는 API 요청 오류')) {
       console.log('💡 이미지 형식이 지원되지 않거나 잘못된 요청입니다');
-    } else if (error.message.includes('Gemini API 분석 실패') && error.message.includes('재시도 실패')) {
-      console.log('💡 Gemini API 연결 문제 또는 이미지 분석 실패 - API 키와 네트워크를 확인하세요');
-    } else if (error.message.includes('Gemini')) {
-      console.log('💡 Gemini API 키를 확인하세요');
+    } else if (error.message.includes('OpenAI API 분석 실패') && error.message.includes('재시도 실패')) {
+      console.log('💡 OpenAI API 연결 문제 또는 이미지 분석 실패 - API 키와 네트워크를 확인하세요');
+    } else if (error.message.includes('OpenAI')) {
+      console.log('💡 OpenAI API 키를 확인하세요');
     } else if (error.message.includes('스크래핑') || error.message.includes('메뉴 이미지')) {
       console.log('💡 카카오 채널 접근 상태를 확인하세요');
     } else {
