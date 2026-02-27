@@ -27,6 +27,13 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+        timeout-minutes: 5
+
+      - name: Download Puppeteer browser
+        run: npx puppeteer browsers install chrome
+        timeout-minutes: 5
 
       - name: Install Puppeteer dependencies
         run: |
