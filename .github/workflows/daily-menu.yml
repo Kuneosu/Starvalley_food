@@ -13,8 +13,6 @@ permissions:
 jobs:
   update-menu:
     runs-on: ubuntu-latest
-    env:
-      PUPPETEER_CACHE_DIR: /home/runner/.cache/puppeteer
 
     steps:
       - name: Checkout repository
@@ -27,30 +25,21 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Cache Puppeteer browser
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/.cache/puppeteer
-          key: ${{ runner.os }}-puppeteer-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-puppeteer-
-
       - name: Install dependencies
-        run: npm install
+        run: npm install --include=optional
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
         timeout-minutes: 5
 
-      - name: Download Puppeteer browser
+      - name: Detect Chrome path
         run: |
-          for i in 1 2 3; do
-            npx puppeteer browsers install chrome && exit 0
-            echo "Puppeteer download failed (attempt $i), retrying..."
-            sleep 10
-          done
-          echo "Puppeteer download failed after 3 attempts"
-          exit 1
-        timeout-minutes: 15
+          CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          if [ -z "$CHROME_PATH" ]; then
+            echo "Chrome executable not found on runner"
+            exit 1
+          fi
+          echo "Using Chrome at: $CHROME_PATH"
+          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_PATH" >> "$GITHUB_ENV"
 
       - name: Install Puppeteer dependencies
         run: |

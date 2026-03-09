@@ -39,8 +39,11 @@ async function scrapeMenuData() {
     ]
   };
 
-  // 로컬 macOS 환경에서만 Chrome 경로 지정
-  if (!isGitHubActions && process.platform === 'darwin') {
+  // 환경변수로 지정된 브라우저 경로가 있으면 우선 사용
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  } else if (!isGitHubActions && process.platform === 'darwin') {
+    // 로컬 macOS 환경에서만 기본 Chrome 경로 지정
     launchOptions.executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   }
 
