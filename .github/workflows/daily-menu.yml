@@ -13,6 +13,8 @@ permissions:
 jobs:
   update-menu:
     runs-on: ubuntu-latest
+    env:
+      PUPPETEER_CACHE_DIR: /home/runner/.cache/puppeteer
 
     steps:
       - name: Checkout repository
@@ -25,6 +27,14 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Cache Puppeteer browser
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/puppeteer
+          key: ${{ runner.os }}-puppeteer-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-puppeteer-
+
       - name: Install dependencies
         run: npm install
         env:
@@ -32,8 +42,15 @@ jobs:
         timeout-minutes: 5
 
       - name: Download Puppeteer browser
-        run: npx puppeteer browsers install chrome
-        timeout-minutes: 5
+        run: |
+          for i in 1 2 3; do
+            npx puppeteer browsers install chrome && exit 0
+            echo "Puppeteer download failed (attempt $i), retrying..."
+            sleep 10
+          done
+          echo "Puppeteer download failed after 3 attempts"
+          exit 1
+        timeout-minutes: 15
 
       - name: Install Puppeteer dependencies
         run: |
