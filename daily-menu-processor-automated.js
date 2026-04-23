@@ -123,24 +123,26 @@ async function scrapeMenuData() {
       console.log(`배경 이미지 개수: ${backgroundImages.length}`);
       
       // 메뉴 관련 텍스트 찾기
-      const allElements = document.querySelectorAll('*');
+      // 카카오 채널 포스트 제목 포맷이 "N월 N일 (요일) 메뉴입니다"에서
+      // "N월 N일 (요일) 입니다" 식으로 바뀌어 "메뉴" 단어가 빠지는 경우가 있어,
+      // 날짜 패턴 기반으로 desc_card / link_title 을 우선 탐색한다.
+      const datePattern = /(\d{1,2})월\s*(\d{1,2})일/;
       const menuTexts = [];
-      
-      for (const element of allElements) {
-        const text = element.textContent || element.innerText || '';
-        if (text.includes('메뉴') && (text.includes('월') || text.includes('일')) && text.length < 100) {
-          // 중복 제거를 위해 텍스트 정리
-          const cleanText = text.replace(/\s+/g, ' ').trim();
-          const isAlreadyAdded = menuTexts.some(item => item.text === cleanText);
-          if (!isAlreadyAdded) {
-            menuTexts.push({
-              element: element,
-              text: cleanText
-            });
-          }
-        }
-      }
-      
+
+      const pushIfDate = (element) => {
+        const raw = element.textContent || element.innerText || '';
+        const cleanText = raw.replace(/\s+/g, ' ').trim();
+        if (!cleanText || cleanText.length >= 100) return;
+        if (!datePattern.test(cleanText)) return;
+        if (menuTexts.some(item => item.text === cleanText)) return;
+        menuTexts.push({ element, text: cleanText });
+      };
+
+      // desc_card 에만 메뉴 날짜가 깨끗하게 들어있음.
+      // link_title 은 작성일("YYYY년 MM월 DD일의 소식") + 메뉴 날짜를 합쳐서 반환하므로
+      // 정규식이 작성일에 먼저 매칭되는 오탐이 발생한다. 쓰지 않는다.
+      document.querySelectorAll('div.desc_card').forEach(pushIfDate);
+
       console.log(`고유 메뉴 텍스트 발견: ${menuTexts.length}개`);
       menuTexts.forEach((item, index) => {
         console.log(`${index + 1}. ${item.text}`);
@@ -196,14 +198,8 @@ async function scrapeMenuData() {
         }
       }
       
-      // 메뉴 텍스트가 없어도 배경 이미지가 있으면 첫 번째 이미지만 추가
-      if (results.length === 0 && backgroundImages.length > 0) {
-        results.push({
-          imageUrl: backgroundImages[0].imageUrl,
-          dateText: '날짜 정보 없음',
-          menuDate: ''
-        });
-      }
+      // 메뉴 텍스트 매칭에 실패해도 절대 빈 menuDate로 업로드하지 않는다.
+      // (과거에 starvalley_food_.json 파일을 덮어쓰는 사고 발생)
       
       return results.sort((a, b) => b.menuDate.localeCompare(a.menuDate));
     });
@@ -414,6 +410,9 @@ async function checkGitHubConnection() {
  * @returns {Promise<string>} 업로드된 파일 URL
  */
 async function uploadToGitHub(menuItems, menuDate, dateText) {
+  if (!menuDate || !/^\d{6}$/.test(menuDate)) {
+    throw new Error(`잘못된 menuDate로 업로드 차단: "${menuDate}" (원문: ${dateText})`);
+  }
   const fileName = `starvalley_food_${menuDate}.json`;
   
   // menuDate를 한국어 날짜로 변환
