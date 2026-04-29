@@ -51,16 +51,21 @@ async function scrapeMenuData() {
   
   try {
     const page = await browser.newPage();
-    
+
     console.log('🔧 페이지 설정 중...');
-    
+
     // 네트워크 이벤트 리스너 추가 (디버깅용)
     page.on('requestfailed', (request) => {
       console.log(`❌ 요청 실패: ${request.url()} - ${request.failure().errorText}`);
     });
-    
+
     page.on('response', (response) => {
       console.log(`📡 응답: ${response.status()} ${response.url()}`);
+    });
+
+    // page.evaluate 내부 console 출력을 GitHub Actions 로그로 노출 (스크래핑 셀렉터 디버깅용)
+    page.on('console', (msg) => {
+      console.log(`[BROWSER] ${msg.text()}`);
     });
     
     // 타임아웃 설정
@@ -92,115 +97,64 @@ async function scrapeMenuData() {
       console.log('⚠️ 이미지 셀렉터 대기 실패, 계속 진행...');
     }
     
-    // wrap_fit_thumb div에서 배경 이미지 URL 파싱
+    // 카카오 채널 포스트 카드 단위로 날짜/이미지 매칭
+    //
+    // DOM 구조 (2026-04 기준):
+    //   div.area_card                          <- 포스트 카드 1개 (헤더용 .card_util 제외)
+    //   ├── div.wrap_archive_txt
+    //   │   └── a.link_title
+    //   │       └── strong.tit_card  "N월 N일(요일) 메뉴입니다^^"
+    //   └── div.wrap_archive_content
+    //       └── ... > a.link_board > div.wrap_fit_thumb [style="background-image: url(...)"]
+    //
+    // 과거 fix(04829ec)에서 사용한 div.desc_card 셀렉터는 더 이상 존재하지 않아
+    // 8일째 스크래핑이 실패하던 문제를 해결한다.
     const menuDataList = await page.evaluate(() => {
       const results = [];
-      
-      // wrap_fit_thumb 클래스를 가진 div 요소들 찾기
-      const thumbDivs = document.querySelectorAll('div.wrap_fit_thumb');
-      console.log(`wrap_fit_thumb div 개수: ${thumbDivs.length}`);
-      
-      // 각 div에서 배경 이미지 URL 추출
-      const backgroundImages = [];
-      for (const div of thumbDivs) {
-        const style = div.getAttribute('style');
-        if (style && style.includes('background-image')) {
-          // style 속성에서 URL 추출: background-image: url("...") 형태
-          const urlMatch = style.match(/background-image:\s*url\(['""]?([^'"")]+)['""]?\)/);
-          if (urlMatch && urlMatch[1]) {
-            const imageUrl = urlMatch[1];
-            if (imageUrl.includes('kakaocdn')) {
-              backgroundImages.push({
-                element: div,
-                imageUrl: imageUrl
-              });
-              console.log(`배경 이미지 URL 발견: ${imageUrl}`);
-            }
-          }
-        }
-      }
-      
-      console.log(`배경 이미지 개수: ${backgroundImages.length}`);
-      
-      // 메뉴 관련 텍스트 찾기
-      // 카카오 채널 포스트 제목 포맷이 "N월 N일 (요일) 메뉴입니다"에서
-      // "N월 N일 (요일) 입니다" 식으로 바뀌어 "메뉴" 단어가 빠지는 경우가 있어,
-      // 날짜 패턴 기반으로 desc_card / link_title 을 우선 탐색한다.
       const datePattern = /(\d{1,2})월\s*(\d{1,2})일/;
-      const menuTexts = [];
 
-      const pushIfDate = (element) => {
-        const raw = element.textContent || element.innerText || '';
-        const cleanText = raw.replace(/\s+/g, ' ').trim();
-        if (!cleanText || cleanText.length >= 100) return;
-        if (!datePattern.test(cleanText)) return;
-        if (menuTexts.some(item => item.text === cleanText)) return;
-        menuTexts.push({ element, text: cleanText });
-      };
+      const cards = Array.from(document.querySelectorAll('div.area_card'))
+        .filter((c) => !c.classList.contains('card_util'));
+      console.log(`area_card 개수(헤더 제외): ${cards.length}`);
 
-      // desc_card 에만 메뉴 날짜가 깨끗하게 들어있음.
-      // link_title 은 작성일("YYYY년 MM월 DD일의 소식") + 메뉴 날짜를 합쳐서 반환하므로
-      // 정규식이 작성일에 먼저 매칭되는 오탐이 발생한다. 쓰지 않는다.
-      document.querySelectorAll('div.desc_card').forEach(pushIfDate);
-
-      console.log(`고유 메뉴 텍스트 발견: ${menuTexts.length}개`);
-      menuTexts.forEach((item, index) => {
-        console.log(`${index + 1}. ${item.text}`);
-      });
-      
-      // 메뉴 텍스트와 배경 이미지 매칭
-      for (const menuText of menuTexts) {
-        // 가장 가까운 배경 이미지 찾기
-        let closestImage = null;
-        let minDistance = Infinity;
-        
-        for (const bgImg of backgroundImages) {
-          try {
-            // DOM 트리에서의 거리 계산
-            const textRect = menuText.element.getBoundingClientRect();
-            const imgRect = bgImg.element.getBoundingClientRect();
-            const distance = Math.abs(textRect.top - imgRect.top) + Math.abs(textRect.left - imgRect.left);
-            
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestImage = bgImg;
-            }
-          } catch (error) {
-            console.log(`거리 계산 오류: ${error.message}`);
-          }
+      for (const card of cards) {
+        const tit = card.querySelector('strong.tit_card');
+        if (!tit) {
+          console.log('카드 스킵: tit_card 없음');
+          continue;
         }
-        
-        if (closestImage) {
-          // 날짜 파싱
-          const dateMatch = menuText.text.match(/(\d{1,2})월\s*(\d{1,2})일/);
-          let menuDate = '';
-          
-          if (dateMatch) {
-            const month = dateMatch[1].padStart(2, '0');
-            const day = dateMatch[2].padStart(2, '0');
-            const currentYear = new Date().getFullYear().toString().slice(-2);
-            menuDate = `${currentYear}${month}${day}`;
-          }
-          
-          // 중복 방지 - 같은 이미지 URL이 이미 있는지 확인
-          const isDuplicate = results.some(result => result.imageUrl === closestImage.imageUrl);
-          if (!isDuplicate) {
-            results.push({
-              imageUrl: closestImage.imageUrl,
-              dateText: menuText.text,
-              menuDate: menuDate
-            });
-            
-            console.log(`매칭 완료: ${menuText.text} -> ${closestImage.imageUrl}`);
-          } else {
-            console.log(`중복 제거: ${closestImage.imageUrl}`);
-          }
+        const cleanText = (tit.textContent || '').replace(/\s+/g, ' ').trim();
+        const dateMatch = cleanText.match(datePattern);
+        if (!dateMatch) {
+          console.log(`카드 스킵: 날짜 패턴 없음 ("${cleanText}")`);
+          continue;
         }
+
+        const thumb = card.querySelector('div.wrap_fit_thumb');
+        const style = thumb?.getAttribute('style') || '';
+        const urlMatch = style.match(/background-image:\s*url\(['""]?([^'"")]+)['""]?\)/);
+        if (!urlMatch || !urlMatch[1] || !urlMatch[1].includes('kakaocdn')) {
+          console.log(`카드 스킵: 이미지 URL 없음 ("${cleanText}")`);
+          continue;
+        }
+
+        const month = dateMatch[1].padStart(2, '0');
+        const day = dateMatch[2].padStart(2, '0');
+        const yy = new Date().getFullYear().toString().slice(-2);
+        const menuDate = `${yy}${month}${day}`;
+        const imageUrl = urlMatch[1];
+
+        if (results.some((r) => r.menuDate === menuDate)) {
+          console.log(`중복 제거: ${menuDate}`);
+          continue;
+        }
+
+        results.push({ imageUrl, dateText: cleanText, menuDate });
+        console.log(`매칭 완료: ${cleanText} (${menuDate}) -> ${imageUrl}`);
       }
-      
-      // 메뉴 텍스트 매칭에 실패해도 절대 빈 menuDate로 업로드하지 않는다.
-      // (과거에 starvalley_food_.json 파일을 덮어쓰는 사고 발생)
-      
+
+      // 매칭 실패 시 절대 빈 menuDate 폴백을 만들지 않는다
+      // (과거 starvalley_food_.json 파일을 매일 덮어쓰는 사고가 있었음)
       return results.sort((a, b) => b.menuDate.localeCompare(a.menuDate));
     });
     
@@ -666,7 +620,13 @@ async function processMenuAutomated() {
 
 // 직접 실행시에만 동작
 if (import.meta.url === `file://${process.argv[1]}`) {
-  processMenuAutomated();
+  processMenuAutomated().then((res) => {
+    // 모든 처리 실패 시 GitHub Actions가 빨간색으로 표시되도록 종료 코드 1 반환
+    // (과거에는 항상 0으로 끝나서 며칠째 스크래핑이 깨져도 워크플로우가 success로 보였음)
+    if (!res?.success || (res.results?.length && !res.results.some((r) => r.success))) {
+      process.exit(1);
+    }
+  });
 }
 
 export { processMenuAutomated };
