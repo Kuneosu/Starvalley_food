@@ -133,8 +133,14 @@ async function scrapeMenuData() {
         const thumb = card.querySelector('div.wrap_fit_thumb');
         const style = thumb?.getAttribute('style') || '';
         const urlMatch = style.match(/background-image:\s*url\(['""]?([^'"")]+)['""]?\)/);
-        if (!urlMatch || !urlMatch[1] || !urlMatch[1].includes('kakaocdn')) {
-          console.log(`카드 스킵: 이미지 URL 없음 ("${cleanText}")`);
+        const imageUrl =
+          urlMatch?.[1] ||
+          thumb?.querySelector('img[src*="kakaocdn"]')?.getAttribute('src') ||
+          card.querySelector('img[src*="kakaocdn"]')?.getAttribute('src');
+
+        if (!imageUrl || !imageUrl.includes('kakaocdn')) {
+          const thumbHtml = thumb?.outerHTML?.replace(/\s+/g, ' ').slice(0, 300) || 'wrap_fit_thumb 없음';
+          console.log(`카드 스킵: 이미지 URL 없음 ("${cleanText}", ${thumbHtml})`);
           continue;
         }
 
@@ -142,7 +148,6 @@ async function scrapeMenuData() {
         const day = dateMatch[2].padStart(2, '0');
         const yy = new Date().getFullYear().toString().slice(-2);
         const menuDate = `${yy}${month}${day}`;
-        const imageUrl = urlMatch[1];
 
         if (results.some((r) => r.menuDate === menuDate)) {
           console.log(`중복 제거: ${menuDate}`);
